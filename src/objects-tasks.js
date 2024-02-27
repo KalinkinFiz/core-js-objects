@@ -160,8 +160,37 @@ function makeWord(lettersObject) {
  *    sellTickets([25, 25, 50]) => true
  *    sellTickets([25, 100]) => false (The seller does not have enough money to give change.)
  */
-function sellTickets(/* queue */) {
-  throw new Error('Not implemented');
+function sellTickets(queue) {
+  let twentyFiveBills = 0;
+  let fiftyBills = 0;
+
+  return queue.every((bill) => {
+    if (bill === 25) {
+      twentyFiveBills += 1;
+      return true;
+    }
+    if (bill === 50) {
+      if (twentyFiveBills > 0) {
+        twentyFiveBills -= 1;
+        fiftyBills += 1;
+        return true;
+      }
+      return false;
+    }
+    if (bill === 100) {
+      if (twentyFiveBills > 0 && fiftyBills > 0) {
+        twentyFiveBills -= 1;
+        fiftyBills -= 1;
+        return true;
+      }
+      if (twentyFiveBills >= 3) {
+        twentyFiveBills -= 3;
+        return true;
+      }
+      return false;
+    }
+    return true;
+  });
 }
 
 /**
@@ -177,9 +206,14 @@ function sellTickets(/* queue */) {
  *    console.log(r.height);      // => 20
  *    console.log(r.getArea());   // => 200
  */
-function Rectangle(/* width, height */) {
-  throw new Error('Not implemented');
+function Rectangle(width, height) {
+  this.width = width;
+  this.height = height;
 }
+
+Rectangle.prototype.getArea = function () {
+  return this.width * this.height;
+};
 
 /**
  * Returns the JSON representation of specified object
@@ -191,8 +225,8 @@ function Rectangle(/* width, height */) {
  *    [1,2,3]   =>  '[1,2,3]'
  *    { width: 10, height : 20 } => '{"height":10,"width":20}'
  */
-function getJSON(/* obj */) {
-  throw new Error('Not implemented');
+function getJSON(obj) {
+  return JSON.stringify(obj);
 }
 
 /**
@@ -206,8 +240,10 @@ function getJSON(/* obj */) {
  *    const r = fromJSON(Circle.prototype, '{"radius":10}');
  *
  */
-function fromJSON(/* proto, json */) {
-  throw new Error('Not implemented');
+function fromJSON(proto, json) {
+  const obj = JSON.parse(json);
+
+  return Object.assign(Object.create(proto), obj);
 }
 
 /**
@@ -236,8 +272,13 @@ function fromJSON(/* proto, json */) {
  *      { country: 'Russia',  city: 'Saint Petersburg' }
  *    ]
  */
-function sortCitiesArray(/* arr */) {
-  throw new Error('Not implemented');
+function sortCitiesArray(arr) {
+  return arr.sort((a, b) => {
+    if (a.country === b.country) {
+      return a.city.localeCompare(b.city);
+    }
+    return a.country.localeCompare(b.country);
+  });
 }
 
 /**
@@ -270,8 +311,20 @@ function sortCitiesArray(/* arr */) {
  *    "Poland" => ["Lodz"]
  *   }
  */
-function group(/* array, keySelector, valueSelector */) {
-  throw new Error('Not implemented');
+function group(array, keySelector, valueSelector) {
+  const resultMap = new Map();
+
+  array.forEach((item) => {
+    const key = keySelector(item);
+    const value = valueSelector(item);
+
+    if (!resultMap.has(key)) {
+      resultMap.set(key, []);
+    }
+    resultMap.get(key).push(value);
+  });
+
+  return resultMap;
 }
 
 /**
@@ -328,33 +381,119 @@ function group(/* array, keySelector, valueSelector */) {
  *  For more examples see unit tests.
  */
 
+class SelectorBuilder {
+  constructor() {
+    this.selectorParts = [];
+    this.elementUsed = false;
+    this.idUsed = false;
+    this.pseudoElementUsed = false;
+    this.lastPartIndex = -1;
+  }
+
+  validateOrder(index) {
+    if (this.lastPartIndex > index) {
+      throw new Error(
+        'Selector parts should be arranged in the following order: element, id, class, attribute, pseudo-class, pseudo-element'
+      );
+    }
+    this.lastPartIndex = index;
+  }
+
+  element(value) {
+    if (this.elementUsed) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    this.validateOrder(0);
+    this.selectorParts.push(value);
+    this.elementUsed = true;
+    return this;
+  }
+
+  id(value) {
+    if (this.idUsed) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    this.validateOrder(1);
+    this.selectorParts.push(`#${value}`);
+    this.idUsed = true;
+    return this;
+  }
+
+  class(value) {
+    this.validateOrder(2);
+    this.selectorParts.push(`.${value}`);
+    return this;
+  }
+
+  attr(value) {
+    this.validateOrder(3);
+    this.selectorParts.push(`[${value}]`);
+    return this;
+  }
+
+  pseudoClass(value) {
+    this.validateOrder(4);
+    this.selectorParts.push(`:${value}`);
+    return this;
+  }
+
+  pseudoElement(value) {
+    if (this.pseudoElementUsed) {
+      throw new Error(
+        'Element, id and pseudo-element should not occur more then one time inside the selector'
+      );
+    }
+    this.validateOrder(5);
+    this.selectorParts.push(`::${value}`);
+    this.pseudoElementUsed = true;
+    return this;
+  }
+
+  combine(selector1, combinator, selector2) {
+    this.selectorParts.push(
+      selector1.stringify(),
+      ` ${combinator} `,
+      selector2.stringify()
+    );
+    return this;
+  }
+
+  stringify() {
+    return this.selectorParts.join('');
+  }
+}
+
 const cssSelectorBuilder = {
-  element(/* value */) {
-    throw new Error('Not implemented');
+  element(value) {
+    return new SelectorBuilder().element(value);
   },
 
-  id(/* value */) {
-    throw new Error('Not implemented');
+  id(value) {
+    return new SelectorBuilder().id(value);
   },
 
-  class(/* value */) {
-    throw new Error('Not implemented');
+  class(value) {
+    return new SelectorBuilder().class(value);
   },
 
-  attr(/* value */) {
-    throw new Error('Not implemented');
+  attr(value) {
+    return new SelectorBuilder().attr(value);
   },
 
-  pseudoClass(/* value */) {
-    throw new Error('Not implemented');
+  pseudoClass(value) {
+    return new SelectorBuilder().pseudoClass(value);
   },
 
-  pseudoElement(/* value */) {
-    throw new Error('Not implemented');
+  pseudoElement(value) {
+    return new SelectorBuilder().pseudoElement(value);
   },
 
-  combine(/* selector1, combinator, selector2 */) {
-    throw new Error('Not implemented');
+  combine(selector1, combinator, selector2) {
+    return new SelectorBuilder().combine(selector1, combinator, selector2);
   },
 };
 
